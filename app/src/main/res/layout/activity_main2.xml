@@ -9,13 +9,27 @@
  <!--   <TextView android:id="@+id/fullscreen_content" android:layout_width="match_parent"
         android:layout_height="match_parent" android:keepScreenOn="true" android:textColor="#33b5e5"
         android:textStyle="bold" android:textSize="50sp" android:gravity="center"
-         />                             -->
-    <VideoView
-        android:background="#0099cc"
+         />
+                                      -->
+    <LinearLayout
         android:id="@+id/fullscreen_content"
         android:layout_width="match_parent"
+        android:background="#0099cc"
+        android:layout_gravity="center"
+        android:layout_height="match_parent">
+    <VideoView
+        android:id="@+id/videoview"
+
+        android:layout_gravity="center"
+        android:layout_width="match_parent"
         android:layout_height="match_parent" />
+  <!--      <SurfaceView
+            android:id="@+id/surfaceview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" /> -->
+    </LinearLayout>
     <ImageButton
+        android:id="@+id/main_add_btn"
         android:layout_width="100dp"
         android:background="@drawable/add_button"
         android:layout_gravity="center"

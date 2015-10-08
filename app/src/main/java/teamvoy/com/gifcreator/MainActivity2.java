@@ -1,18 +1,30 @@
 package teamvoy.com.gifcreator;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.Intent;
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.MotionEvent;
+import android.view.SurfaceView;
 import android.view.View;
+import android.widget.ImageButton;
+import android.widget.MediaController;
+import android.widget.VideoView;
+
+import java.net.URI;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
  * status bar and navigation/system bar) with user interaction.
  */
 public class MainActivity2 extends AppCompatActivity {
+    private String TAG="MainActivity";
     /**
      * Whether or not the system UI should be auto-hidden after
      * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
@@ -31,9 +43,14 @@ public class MainActivity2 extends AppCompatActivity {
      */
     private static final int UI_ANIMATION_DELAY = 300;
 
+    private ImageButton add_btn;
     private View mContentView;
     private View mControlsView;
     private boolean mVisible;
+    private final int SELECT_SOURCE_REQUEST_CODE=12345;
+//    private String videoToPlay;
+    private VideoView videoView;
+    private SurfaceView surfaceView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,10 +59,21 @@ public class MainActivity2 extends AppCompatActivity {
         setContentView(R.layout.activity_main2);
 
         mVisible = true;
+        videoView=(VideoView)findViewById(R.id.videoview);
+        add_btn=(ImageButton)findViewById(R.id.main_add_btn);
         mControlsView = findViewById(R.id.fullscreen_content_controls);
         mContentView = findViewById(R.id.fullscreen_content);
 
-
+      //  MediaController mediaController= new MediaController(this);
+      //  mediaController.setAnchorView(videoView);
+       // videoView.setMediaController(mediaController);
+        //Set the ADD button click event
+        add_btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openUrlIntent();
+            }
+        });
         // Set up the user interaction to manually show or hide the system UI.
         mContentView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -58,6 +86,44 @@ public class MainActivity2 extends AppCompatActivity {
         // operations to prevent the jarring behavior of controls going away
         // while interacting with the UI.
         findViewById(R.id.dummy_button).setOnTouchListener(mDelayHideTouchListener);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            add_btn.setVisibility(View.GONE);
+            if (requestCode == SELECT_SOURCE_REQUEST_CODE) {
+                Uri uri = data == null ? null : data.getData();
+                play(uri);
+
+            }
+        }
+    }
+
+    private void play(Uri uri) {
+        videoView.setVideoURI(uri);
+        videoView.start();
+    }
+
+    private void openUrlIntent() {
+
+        //url
+        Intent urlIntent=new Intent(this,UrlActivity.class);
+        //gallery
+        Intent galleryIntent = new Intent();
+        	galleryIntent.setType("video/*");
+        galleryIntent.setAction(Intent.ACTION_GET_CONTENT);
+
+        //TODO don't forget to add camera option in future
+
+        // Chooser of filesystem options.
+        final Intent chooserIntent = Intent.createChooser(galleryIntent, "Select source of video");
+        // Add the url option.
+        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS,new Intent[]{urlIntent});
+
+        startActivityForResult(chooserIntent, SELECT_SOURCE_REQUEST_CODE);
+
     }
 
     @Override
