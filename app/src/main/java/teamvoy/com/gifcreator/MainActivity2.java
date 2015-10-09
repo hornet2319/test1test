@@ -1,23 +1,27 @@
 package teamvoy.com.gifcreator;
 
 import android.annotation.SuppressLint;
-import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.provider.MediaStore;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.Display;
 import android.view.MotionEvent;
+import android.view.Surface;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.ImageButton;
 import android.widget.MediaController;
+import android.widget.RelativeLayout;
 import android.widget.VideoView;
-
-import java.net.URI;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
@@ -43,7 +47,7 @@ public class MainActivity2 extends AppCompatActivity {
      */
     private static final int UI_ANIMATION_DELAY = 300;
 
-    private ImageButton add_btn;
+    private ImageButton add_btn,play_btn;
     private View mContentView;
     private View mControlsView;
     private boolean mVisible;
@@ -51,22 +55,29 @@ public class MainActivity2 extends AppCompatActivity {
 //    private String videoToPlay;
     private VideoView videoView;
     private SurfaceView surfaceView;
-
+    private ProgressDialog pDialog;
+    private Uri videoUri;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main2);
+        pDialog = new ProgressDialog(this);
 
         mVisible = true;
+        pDialog.setMessage("Buffering...");
+        pDialog.setIndeterminate(false);
+        pDialog.setCancelable(false);
+
+        play_btn=(ImageButton)findViewById(R.id.main_play_btn);
         videoView=(VideoView)findViewById(R.id.videoview);
         add_btn=(ImageButton)findViewById(R.id.main_add_btn);
         mControlsView = findViewById(R.id.fullscreen_content_controls);
         mContentView = findViewById(R.id.fullscreen_content);
 
-      //  MediaController mediaController= new MediaController(this);
-      //  mediaController.setAnchorView(videoView);
-       // videoView.setMediaController(mediaController);
+        MediaController mediaController= new MediaController(this);
+        mediaController.setAnchorView(videoView);
+        videoView.setMediaController(mediaController);
         //Set the ADD button click event
         add_btn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -86,6 +97,42 @@ public class MainActivity2 extends AppCompatActivity {
         // operations to prevent the jarring behavior of controls going away
         // while interacting with the UI.
         findViewById(R.id.dummy_button).setOnTouchListener(mDelayHideTouchListener);
+        Display display = ((WindowManager) getSystemService(WINDOW_SERVICE))
+                .getDefaultDisplay();
+
+        play_btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                play_btn.setVisibility(View.GONE);
+
+                if (videoUri==null) {
+                    Log.w(TAG, "videoUrl=null");
+                    return;
+                }
+
+                pDialog.show();
+                play();
+            }
+        });
+        int orientation = display.getRotation();
+
+        if (orientation == Surface.ROTATION_90
+                || orientation == Surface.ROTATION_270) {
+         //   setLandscape();
+        }
+    }
+
+
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // Checks the orientation of the screen
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+        //    setLandscape();
+        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT){
+         //   setPortrait();
+        }
     }
 
     @Override
@@ -94,16 +141,52 @@ public class MainActivity2 extends AppCompatActivity {
         if (resultCode == RESULT_OK) {
             add_btn.setVisibility(View.GONE);
             if (requestCode == SELECT_SOURCE_REQUEST_CODE) {
-                Uri uri = data == null ? null : data.getData();
-                play(uri);
-
+                videoUri = data == null ? null : data.getData();
+                play_btn.setVisibility(View.VISIBLE);
             }
         }
     }
-
-    private void play(Uri uri) {
-        videoView.setVideoURI(uri);
-        videoView.start();
+    private void setLandscape() {
+        RelativeLayout.LayoutParams layoutParams=(RelativeLayout.LayoutParams)videoView.getLayoutParams();
+        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
+        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
+        videoView.setLayoutParams(layoutParams);
+    }
+    //switch to fullscreen
+    private void setPortrait(){
+        RelativeLayout.LayoutParams layoutParams=(RelativeLayout.LayoutParams)videoView.getLayoutParams();
+        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, 0);
+        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP,0);
+        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_LEFT,0);
+        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_RIGHT,0);
+        videoView.setLayoutParams(layoutParams);
+    }
+    private void play() {
+        videoView.setVideoURI(videoUri);
+        videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+            // Close the progress bar and play the video
+            public void onPrepared(MediaPlayer mp) {
+                pDialog.dismiss();
+                videoView.start();
+            }
+        });
+        videoView.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                mp.reset();
+                play_btn.setVisibility(View.VISIBLE);
+            }
+        });
+        videoView.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+            @Override
+            public boolean onError(MediaPlayer mp, int what, int extra) {
+                pDialog.dismiss();
+                add_btn.setVisibility(View.VISIBLE);
+                return false;
+            }
+        });
     }
 
     private void openUrlIntent() {
@@ -116,11 +199,13 @@ public class MainActivity2 extends AppCompatActivity {
         galleryIntent.setAction(Intent.ACTION_GET_CONTENT);
 
         //TODO don't forget to add camera option in future
+        //camera
+        Intent takeVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
 
         // Chooser of filesystem options.
         final Intent chooserIntent = Intent.createChooser(galleryIntent, "Select source of video");
         // Add the url option.
-        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS,new Intent[]{urlIntent});
+        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS,new Intent[]{urlIntent, takeVideoIntent});
 
         startActivityForResult(chooserIntent, SELECT_SOURCE_REQUEST_CODE);
 
@@ -153,9 +238,9 @@ public class MainActivity2 extends AppCompatActivity {
 
     private void toggle() {
         if (mVisible) {
-            hide();
+       //     hide();
         } else {
-            show();
+       //     show();
         }
     }
 
